@@ -23,3 +23,7 @@ typedef struct zelda64_rom_header {
 
 void zelda64_read_rom_header_from_buffer(zelda64_rom_header_t *destination, uint8_t const *buffer,
                                          size_t buffer_length);
+
+uint32_t zelda64_calculate_rom_cic(uint8_t const *bootcode, uint64_t size);
+
+void zelda64_calculate_rom_checksum(uint8_t const *data, uint64_t size, uint32_t cic, uint32_t* crc1, uint32_t* crc2);

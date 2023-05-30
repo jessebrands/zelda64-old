@@ -9,7 +9,6 @@ void zelda64_yaz0_decompress(uint8_t *restrict dest, uint64_t dest_size, uint8_t
     uint64_t dest_index = 0;
     uint8_t count = 0;
     uint8_t cb;
-
     while (dest_index < dest_size) {
         if (count == 0) {
             cb = src[src_index++];

@@ -7,6 +7,8 @@
 
 #include "../lib/dma.h"
 #include "../lib/yaz0.h"
+#include "../lib/crc32.h"
+#include "../lib/rom.h"
 
 #define DEFAULT_INFILE "ZOOTENC.z64"
 #define DEFAULT_OUTFILE "ZOOTDEC.z64"
@@ -118,7 +120,7 @@ int main(int argc, char **argv) {
     }
     // Open up the output ROM file
     // Allocate memory to hold the new DMA table.
-    FILE *out_file = fopen(opts.out_filename, "wb");
+    FILE *out_file = fopen(opts.out_filename, "wb+");
     if (out_file == NULL) {
         fprintf(stderr, "failed to open '%s', it may already be in use\n", opts.out_filename);
         free(dma_data);
@@ -185,11 +187,35 @@ int main(int argc, char **argv) {
     }
     // Write out the new DMA table.
     fseek(out_file, info.offset, SEEK_SET);
-    fwrite(dma_out, sizeof (uint8_t), info.size, out_file);
-    // Cleanup.
-    fclose(out_file);
-    fclose(in_file);
+    fwrite(dma_out, sizeof(uint8_t), info.size, out_file);
     free(dma_out);
     free(dma_data);
+    // Recalculate the CRC-32 checksum of the output ROM.
+    fflush(out_file);
+    if (fseek(out_file, 0, SEEK_SET)) {
+        fprintf(stderr, "failed to read output ROM\n");
+        return EXIT_FAILURE;
+    }
+    uint8_t *makerom = calloc(0x101000, sizeof(uint8_t));
+    if (!fread(makerom, sizeof(uint8_t), 0x101000, out_file) && ferror(out_file)) {
+        fprintf(stderr, "failed to read MAKEROM from output ROM: %s\n",
+                strerror(errno));
+        return EXIT_FAILURE;
+    }
+    zelda64_rom_header_t rom_header = {0};
+    zelda64_read_rom_header_from_buffer(&rom_header, makerom, 0x101000);
+    uint32_t cic = zelda64_calculate_rom_cic(rom_header.bootcode, 4032);
+    uint32_t crc1 = 0, crc2 = 0;
+    zelda64_calculate_rom_checksum(makerom, 0x101000, cic, &crc1, &crc2);
+    printf("CIC for the output ROM is: %d\n", cic);
+    printf("Checksum for this ROM is 0x%08X%08X\n", crc1, crc2);
+    uint8_t crc[8] = {0};
+    u32_to_buf(crc1, crc);
+    u32_to_buf(crc2, crc + 4);
+    fseek(out_file, 16, SEEK_SET);
+    fwrite(crc, sizeof(uint8_t), sizeof crc, out_file);
+    // Cleanup.
+    fclose(in_file);
+    fclose(out_file);
     return EXIT_SUCCESS;
 }
