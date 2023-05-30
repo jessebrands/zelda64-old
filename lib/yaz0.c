@@ -4,8 +4,7 @@
 
 #include "yaz0.h"
 
-void zelda64_yaz0_decompress(uint8_t *restrict dest, uint64_t dest_size,
-                             uint8_t const *restrict src, uint64_t src_size) {
+void zelda64_yaz0_decompress(uint8_t *restrict dest, uint64_t dest_size, uint8_t const *restrict src) {
     uint64_t src_index = 16; // skip header
     uint64_t dest_index = 0;
     uint8_t count = 0;

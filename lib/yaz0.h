@@ -28,4 +28,4 @@ static inline bool zelda64_is_valid_yaz0_header(zelda64_yaz0_header_t header) {
     return memcmp(header.magic, YAZ0_MAGIC, sizeof(header.magic)) == 0;
 }
 
-void zelda64_yaz0_decompress(uint8_t *dest, uint64_t dest_size, uint8_t const *src, uint64_t src_size);
+void zelda64_yaz0_decompress(uint8_t *dest, uint64_t dest_size, uint8_t const *src);

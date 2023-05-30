@@ -124,6 +124,14 @@ int main(int argc, char **argv) {
         free(dma_data);
         return EXIT_FAILURE;
     }
+    {
+        uint8_t zeroes[8192] = {0};
+        for (int n = 0; n < 8192; n++) { // 8192^2 = 64 MB
+            fwrite(zeroes, sizeof(uint8_t), sizeof zeroes, out_file);
+        }
+        fflush(out_file);
+        fseek(out_file, 0, SEEK_SET);
+    }
     uint8_t *dma_out = calloc(info.size, sizeof(uint8_t));
     for (uint32_t i = 0; i < info.entries; ++i) {
         zelda64_dma_entry_t entry = zelda64_get_dma_table_entry(dma_data, info.size, i);
@@ -133,14 +141,26 @@ int main(int argc, char **argv) {
         } else if (entry.p_end == 0x0) {
             // No decompression necessary, just copy the file from ROM.
             uint32_t ent_size = entry.v_end - entry.v_start;
+            if (ent_size != 0) {
+                fseek(in_file, entry.p_start, SEEK_SET);
+                uint8_t *data = calloc(ent_size, sizeof(uint8_t));
+                if (!fread(data, sizeof(uint8_t), ent_size, in_file)) {
+                    fprintf(stderr, "failed to read file to memory\n");
+                    return EXIT_FAILURE;
+                }
+                // Write the data to output ROM.
+                fseek(out_file, entry.v_start, SEEK_SET);
+                fwrite(data, sizeof(uint8_t), ent_size, out_file);
+                free(data);
+            }
         } else {
             // Decompress the file.
             uint32_t ent_size = entry.p_end - entry.p_start;
-            uint8_t *compressed_data = calloc(ent_size, sizeof(uint8_t));
             if (fseek(in_file, entry.p_start, SEEK_SET)) {
                 fprintf(stderr, "failed to read ROM file '%s'\n", opts.in_filename);
                 return EXIT_FAILURE;
             }
+            uint8_t *compressed_data = calloc(ent_size, sizeof(uint8_t));
             if (!fread(compressed_data, sizeof(uint8_t), ent_size, in_file)) {
                 fprintf(stderr, "failed to read file to memory\n");
                 return EXIT_FAILURE;
@@ -151,16 +171,24 @@ int main(int argc, char **argv) {
                 return EXIT_FAILURE;
             }
             uint8_t *decompressed_data = calloc(yaz0_header.uncompressed_size, sizeof(uint8_t));
-            zelda64_yaz0_decompress(decompressed_data, yaz0_header.uncompressed_size, compressed_data, ent_size);
-            free(decompressed_data);
+            zelda64_yaz0_decompress(decompressed_data, yaz0_header.uncompressed_size, compressed_data);
             free(compressed_data);
+            // Write our decompressed data to the output ROM.
+            fseek(out_file, entry.v_start, SEEK_SET);
+            fwrite(decompressed_data, sizeof(uint8_t), yaz0_header.uncompressed_size, out_file);
+            free(decompressed_data);
         }
         // decompressed data always has p_end == 0 and p_start == v_start
         entry.p_start = entry.v_start;
         entry.p_end = 0x0;
         zelda64_set_dma_table_entry(dma_out, info.size, i, entry);
     }
+    // Write out the new DMA table.
+    fseek(out_file, info.offset, SEEK_SET);
+    fwrite(dma_out, sizeof (uint8_t), info.size, out_file);
     // Cleanup.
+    fclose(out_file);
+    fclose(in_file);
     free(dma_out);
     free(dma_data);
     return EXIT_SUCCESS;
