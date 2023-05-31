@@ -1,6 +1,26 @@
 cmake_minimum_required(VERSION 3.22)
 project(zelda64 C)
 
-set(CMAKE_C_STANDARD 17)
+if (MSVC)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif ()
 
-add_executable(zelda64 src/main.c lib/rom.c lib/rom.h lib/dma.c lib/dma.h lib/util.h lib/yaz0.c lib/yaz0.h lib/crc32.c lib/crc32.h)
+# Library.
+add_library(zelda64 SHARED lib/rom.c lib/rom.h lib/dma.c lib/dma.h lib/util.h lib/yaz0.c lib/yaz0.h lib/crc32.c lib/crc32.h)
+set_target_properties(zelda64 PROPERTIES
+        C_STANDARD 17
+        C_STANDARD_REQUIRED ON
+        C_EXTENSIONS OFF)
+
+# Binary based on the library.
+add_executable(zelda64-bin src/main.c)
+set_target_properties(zelda64-bin PROPERTIES
+        C_STANDARD 17
+        C_STANDARD_REQUIRED ON
+        C_EXTENSIONS OFF
+        OUTPUT_NAME zelda64)
+
+find_package(ZLIB REQUIRED)
+target_link_libraries(zelda64-bin
+        PRIVATE zelda64
+        PRIVATE ZLIB::ZLIB)

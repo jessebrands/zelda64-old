@@ -1,0 +1,9 @@
+{
+  "name" : "zelda64",
+  "version-string" : "0.1.0",
+  "builtin-baseline" : "8a2b7de29d42d713e4816d542cd610ee59dff63e",
+  "dependencies" : [ {
+    "name" : "zlib",
+    "version>=" : "1.2.13"
+  } ]
+}
