@@ -1,7 +1,3 @@
-//
-// Created by Jesse on 29/05/2023.
-//
-
 #include <assert.h>
 #include <string.h>
 
@@ -75,13 +71,7 @@ void zelda64_calculate_rom_checksum(uint8_t const *restrict data, uint64_t size,
                                     uint32_t *restrict crc1, uint32_t *restrict crc2) {
     assert(size >= 0x101000);
     uint32_t seed = get_checksum_seed(cic);
-    uint32_t t1, t2, t3, t4, t5, t6;
-    t1 = seed;
-    t2 = seed;
-    t3 = seed;
-    t4 = seed;
-    t5 = seed;
-    t6 = seed;
+    uint32_t t1 = seed, t2 = seed, t3 = seed, t4 = seed, t5 = seed, t6 = seed;
     for (int_fast32_t i = 0x1000; i < 0x101000; i += 4) {
         uint32_t d = u32_from_buf(data + i);
         if ((t6 + d) < t6) t4++;

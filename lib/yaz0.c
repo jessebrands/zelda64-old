@@ -1,7 +1,3 @@
-//
-// Created by Jesse on 30/05/2023.
-//
-
 #include "yaz0.h"
 
 void zelda64_yaz0_decompress(uint8_t *restrict dest, uint64_t dest_size, uint8_t const *restrict src) {

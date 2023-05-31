@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdint.h>
 
 // Reads an uint32_t from an uint8_t array.

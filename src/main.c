@@ -7,30 +7,47 @@
 
 #include "../lib/dma.h"
 #include "../lib/yaz0.h"
-#include "../lib/crc32.h"
 #include "../lib/rom.h"
 
-#define DEFAULT_INFILE "ZOOTENC.z64"
-#define DEFAULT_OUTFILE "ZOOTDEC.z64"
+#define DEFAULT_OUTFILE "out.z64"
 
 #define CHUNK_SIZE 4096
+
+enum operation_mode {
+    ZELDA64_MODE_NONE = 0,
+    ZELDA64_MODE_COMPRESS = 1,
+    ZELDA64_MODE_DECOMPRESS = 2,
+    ZELDA64_MODE_PATCH = 3,
+};
 
 typedef struct zelda64_options {
     char const *in_filename;
     char const *out_filename;
+    char const *patch_filename;
+    enum operation_mode mode;
     bool show_help;
     bool show_version;
 } zelda64_options_t;
 
-void print_usage(FILE *stream, char const *const program_name) {
+void print_usage(FILE *stream, char const *program_name) {
     assert(stream != NULL);
     assert(program_name != NULL);
-    fprintf(stream, "Usage: %s [-hv] file [out_file]\n", program_name);
+    fprintf(stream, "Usage: zelda64 [-hvcx] [-p patch_file] file [out_file]\n");
 }
 
 void print_version(void) {
     printf("zelda64 v0.1 - utility for manipulating Nintendo 64 Zelda ROMs\n");
     printf("\tby Jesse Gerard Brands <https://github.com/jessebrands/zelda64>\n");
+}
+
+void print_help(char const *program_name) {
+    print_usage(stdout, program_name);
+    printf("Options:\n");
+    printf("\t-h\n\t\tDisplay this information.\n");
+    printf("\t-v\n\t\tDisplay version information.\n");
+    printf("\t-c\n\t\tCompresses Nintendo 64 Zelda ROM file.\n");
+    printf("\t-x\n\t\tDecompresses Nintendo 64 Zelda ROM file.\n");
+    printf("\t-p=<patch_file>\n\t\tPatches a Nintendo 64 Zelda ROM with a ZPF patch file.\n");
 }
 
 void parse_command_line_opts(zelda64_options_t *opts, int argc, char const *const *argv) {
@@ -44,6 +61,21 @@ void parse_command_line_opts(zelda64_options_t *opts, int argc, char const *cons
                     break;
                 case 'h':
                     opts->show_help = true;
+                    break;
+                case 'c':
+                    opts->mode = ZELDA64_MODE_COMPRESS;
+                    break;
+                case 'x':
+                    opts->mode = ZELDA64_MODE_DECOMPRESS;
+                    break;
+                case 'p':
+                    opts->mode = ZELDA64_MODE_PATCH;
+                    if (i + 1 < argc) {
+                        opts->patch_filename = argv[++i];
+                    } else {
+                        print_usage(stderr, argv[0]);
+                        exit(EXIT_FAILURE);
+                    }
                     break;
                 default:
                     print_usage(stderr, argv[0]);
@@ -60,12 +92,11 @@ void parse_command_line_opts(zelda64_options_t *opts, int argc, char const *cons
             }
         }
     }
-    // If in_file and/or out_file are blank, assume their defaults.
-    if (opts->in_filename == NULL) {
-        opts->in_filename = DEFAULT_INFILE;
-    }
     if (opts->out_filename == NULL) {
         opts->out_filename = DEFAULT_OUTFILE;
+    }
+    if (opts->mode == ZELDA64_MODE_NONE) {
+        opts->mode = ZELDA64_MODE_DECOMPRESS;
     }
 }
 
@@ -73,12 +104,16 @@ int main(int argc, char **argv) {
     zelda64_options_t opts = {0};
     parse_command_line_opts(&opts, argc, (char const *const *) argv);
     if (opts.show_help) {
-        print_usage(stdout, argv[0]);
+        print_help(argv[0]);
         return EXIT_SUCCESS;
     }
     if (opts.show_version) {
         print_version();
         return EXIT_SUCCESS;
+    }
+    if (opts.in_filename == NULL) {
+        print_usage(stderr, argv[0]);
+        return EXIT_FAILURE;
     }
     // open the ROM file if possible
     FILE *in_file = fopen(opts.in_filename, "rb");
@@ -198,8 +233,7 @@ int main(int argc, char **argv) {
     }
     uint8_t *makerom = calloc(0x101000, sizeof(uint8_t));
     if (!fread(makerom, sizeof(uint8_t), 0x101000, out_file) && ferror(out_file)) {
-        fprintf(stderr, "failed to read MAKEROM from output ROM: %s\n",
-                strerror(errno));
+        fprintf(stderr, "failed to read MAKEROM from output ROM\n");
         return EXIT_FAILURE;
     }
     zelda64_rom_header_t rom_header = {0};
@@ -207,8 +241,6 @@ int main(int argc, char **argv) {
     uint32_t cic = zelda64_calculate_rom_cic(rom_header.bootcode, 4032);
     uint32_t crc1 = 0, crc2 = 0;
     zelda64_calculate_rom_checksum(makerom, 0x101000, cic, &crc1, &crc2);
-    printf("CIC for the output ROM is: %d\n", cic);
-    printf("Checksum for this ROM is 0x%08X%08X\n", crc1, crc2);
     uint8_t crc[8] = {0};
     u32_to_buf(crc1, crc);
     u32_to_buf(crc2, crc + 4);
