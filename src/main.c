@@ -8,6 +8,7 @@
 #include "../lib/dma.h"
 #include "../lib/yaz0.h"
 #include "../lib/rom.h"
+#include "../lib/decompressor.h"
 
 #define DEFAULT_OUTFILE "out.z64"
 
@@ -100,6 +101,48 @@ void parse_command_line_opts(zelda64_options_t *opts, int argc, char const *cons
     }
 }
 
+typedef struct zelda64_userdata {
+    FILE *in_file;
+    FILE *out_file;
+} zelda64_userdata_t;
+
+uint8_t *allocate(size_t size, void *userdata) {
+    return calloc(sizeof(uint8_t), size);
+}
+
+void deallocate(uint8_t *ptr, size_t size, void *userdata) {
+    free(ptr);
+}
+
+uint8_t *load_rom_data(uint32_t offset, uint32_t size, void *userdata) {
+    if (userdata == NULL) {
+        return NULL;
+    }
+    zelda64_userdata_t *d = (zelda64_userdata_t *) userdata;
+    if (fseek(d->in_file, offset, SEEK_SET)) {
+        return NULL;
+    }
+    uint8_t *data = allocate(size, userdata);
+    if (!fread(data, sizeof(uint8_t), size, d->in_file)) {
+        deallocate(data, size, userdata);
+        return NULL;
+    }
+    return data;
+}
+
+void unload_rom_data(uint8_t *data, void *userdata) {
+    free(data);
+}
+
+void write_out(uint64_t offset, size_t size, uint8_t *data, void *userdata) {
+    if (userdata == NULL) return;
+    zelda64_userdata_t *d = (zelda64_userdata_t *) userdata;
+    if (fseek(d->out_file, offset, SEEK_SET)) {
+        return;
+    }
+    fwrite(data, sizeof(uint8_t), size, d->out_file);
+}
+
 int main(int argc, char **argv) {
     zelda64_options_t opts = {0};
     parse_command_line_opts(&opts, argc, (char const *const *) argv);
@@ -170,56 +213,20 @@ int main(int argc, char **argv) {
         fseek(out_file, 0, SEEK_SET);
     }
     uint8_t *dma_out = calloc(info.size, sizeof(uint8_t));
-    for (uint32_t i = 0; i < info.entries; ++i) {
-        zelda64_dma_entry_t entry = zelda64_get_dma_table_entry(dma_data, info.size, i);
-        if (entry.p_start >= 0x4000000 || entry.p_end == 0xFFFFFFFF) {
-            // Not sure if this can even happen, but if the file is located OOB we should just skip it.
-            continue;
-        } else if (entry.p_end == 0x0) {
-            // No decompression necessary, just copy the file from ROM.
-            uint32_t ent_size = entry.v_end - entry.v_start;
-            if (ent_size != 0) {
-                fseek(in_file, entry.p_start, SEEK_SET);
-                uint8_t *data = calloc(ent_size, sizeof(uint8_t));
-                if (!fread(data, sizeof(uint8_t), ent_size, in_file)) {
-                    fprintf(stderr, "failed to read file to memory\n");
-                    return EXIT_FAILURE;
-                }
-                // Write the data to output ROM.
-                fseek(out_file, entry.v_start, SEEK_SET);
-                fwrite(data, sizeof(uint8_t), ent_size, out_file);
-                free(data);
-            }
-        } else {
-            // Decompress the file.
-            uint32_t ent_size = entry.p_end - entry.p_start;
-            if (fseek(in_file, entry.p_start, SEEK_SET)) {
-                fprintf(stderr, "failed to read ROM file '%s'\n", opts.in_filename);
-                return EXIT_FAILURE;
-            }
-            uint8_t *compressed_data = calloc(ent_size, sizeof(uint8_t));
-            if (!fread(compressed_data, sizeof(uint8_t), ent_size, in_file)) {
-                fprintf(stderr, "failed to read file to memory\n");
-                return EXIT_FAILURE;
-            }
-            zelda64_yaz0_header_t yaz0_header = zelda64_get_yaz0_header(compressed_data);
-            if (!zelda64_is_valid_yaz0_header(yaz0_header)) {
-                fprintf(stderr, "cannot decompress data, not valid Yaz0 compressed data\n");
-                return EXIT_FAILURE;
-            }
-            uint8_t *decompressed_data = calloc(yaz0_header.uncompressed_size, sizeof(uint8_t));
-            zelda64_yaz0_decompress(decompressed_data, yaz0_header.uncompressed_size, compressed_data);
-            free(compressed_data);
-            // Write our decompressed data to the output ROM.
-            fseek(out_file, entry.v_start, SEEK_SET);
-            fwrite(decompressed_data, sizeof(uint8_t), yaz0_header.uncompressed_size, out_file);
-            free(decompressed_data);
-        }
-        // decompressed data always has p_end == 0 and p_start == v_start
-        entry.p_start = entry.v_start;
-        entry.p_end = 0x0;
-        zelda64_set_dma_table_entry(dma_out, info.size, i, entry);
-    }
+    zelda64_userdata_t userdata = {
+            .in_file = in_file,
+            .out_file = out_file,
+    };
+    zelda64_decompress_rom((zelda64_decompressor_info_t) {
+            .dma_info = info,
+            .dma_data = dma_data,
+            .allocate = allocate,
+            .deallocate = deallocate,
+            .load_rom_data = load_rom_data,
+            .unload_rom_data = unload_rom_data,
+            .write_out = write_out,
+            .userdata = &userdata,
+    });
     // Write out the new DMA table.
     fseek(out_file, info.offset, SEEK_SET);
     fwrite(dma_out, sizeof(uint8_t), info.size, out_file);
