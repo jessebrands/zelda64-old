@@ -24,8 +24,8 @@ uint32_t zelda64_crc32_calculate_checksum(const uint8_t *data, size_t size) {
     }
     uint32_t crc = 0xFFFFFFFF;
     for (int_fast32_t i = 0; i < size; ++i) {
-        uint8_t const ch = data[i];
-        uint8_t const t = (crc ^ ch) & 0xFF;
+        const uint8_t ch = data[i];
+        const uint8_t t = (crc ^ ch) & 0xFF;
         crc = (crc >> 8) ^ crc_table[t];
     }
     return ~crc;

@@ -32,7 +32,7 @@ int zelda64_find_dma_table_offset(const uint8_t *buffer, size_t buffer_length, u
     assert(buffer != NULL);
     assert(out != NULL);
     for (size_t offset = 0; offset + sizeof(needle) < buffer_length; offset += 4) {
-        uint8_t const *cursor = buffer + offset;
+        const uint8_t *cursor = buffer + offset;
         if (memcmp(cursor, needle, sizeof(needle)) == 0) {
             *out = offset;
             return 0;
@@ -43,7 +43,7 @@ int zelda64_find_dma_table_offset(const uint8_t *buffer, size_t buffer_length, u
 
 zelda64_dma_info_t zelda64_get_dma_table_information(const uint8_t *buffer, size_t dma_offset) {
     assert(buffer != NULL);
-    uint8_t const *cursor = buffer + (dma_offset + 32);
+    const uint8_t *cursor = buffer + (dma_offset + 32);
     const zelda64_dma_entry_t entry = read_entry_from_buf(cursor);
     return (zelda64_dma_info_t) {
             entry.v_start,
@@ -55,7 +55,7 @@ zelda64_dma_info_t zelda64_get_dma_table_information(const uint8_t *buffer, size
 zelda64_dma_entry_t zelda64_get_dma_table_entry(const uint8_t *dma_data, size_t size, uint32_t index) {
     assert(dma_data != NULL);
     assert(index * 16 + 16 <= size);
-    uint8_t const *cursor = dma_data + index * 16;
+    const uint8_t *cursor = dma_data + index * 16;
     return read_entry_from_buf(cursor);
 }
 
