@@ -1,9 +1,9 @@
 #include <assert.h>
 #include <string.h>
 
-#include "rom.h"
+#include <zelda64/rom.h>
+#include <zelda64/crc32.h>
 #include "util.h"
-#include "crc32.h"
 
 #define CRC32_6101_BOOTCODE 0x6170A4A1
 #define CRC32_6102_BOOTCODE 0x90BB6CB5
@@ -27,7 +27,7 @@ static inline uint32_t get_checksum_seed(uint32_t cic) {
     }
 }
 
-void zelda64_read_rom_header_from_buffer(zelda64_rom_header_t *destination, uint8_t const *const buffer,
+void zelda64_read_rom_header_from_buffer(zelda64_rom_header_t *destination, const uint8_t *const buffer,
                                          size_t buffer_length) {
     assert(destination != NULL);
     assert(buffer != NULL);
@@ -49,7 +49,7 @@ void zelda64_read_rom_header_from_buffer(zelda64_rom_header_t *destination, uint
     }
 }
 
-uint32_t zelda64_calculate_rom_cic(uint8_t const *bootcode, uint64_t size) {
+uint32_t zelda64_calculate_rom_cic(const uint8_t *bootcode, size_t size) {
     uint32_t crc = zelda64_crc32_calculate_checksum(bootcode, size);
     switch (crc) {
         case CRC32_6101_BOOTCODE:
@@ -67,7 +67,7 @@ uint32_t zelda64_calculate_rom_cic(uint8_t const *bootcode, uint64_t size) {
     }
 }
 
-void zelda64_calculate_rom_checksum(uint8_t const *restrict data, uint64_t size, uint32_t cic,
+void zelda64_calculate_rom_checksum(const uint8_t *data, size_t size, uint32_t cic,
                                     uint32_t *restrict crc1, uint32_t *restrict crc2) {
     assert(size >= 0x101000);
     uint32_t seed = get_checksum_seed(cic);

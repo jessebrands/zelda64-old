@@ -5,10 +5,11 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#include "../lib/dma.h"
-#include "../lib/yaz0.h"
-#include "../lib/rom.h"
-#include "../lib/decompressor.h"
+#include <zelda64/dma.h>
+#include <zelda64/rom.h>
+#include <zelda64/decompressor.h>
+
+#include "../lib/util.h"
 
 #define DEFAULT_OUTFILE "out.z64"
 
@@ -22,15 +23,15 @@ enum operation_mode {
 };
 
 typedef struct zelda64_options {
-    char const *in_filename;
-    char const *out_filename;
-    char const *patch_filename;
+    const char *in_filename;
+    const char *out_filename;
+    const char *patch_filename;
     enum operation_mode mode;
     bool show_help;
     bool show_version;
 } zelda64_options_t;
 
-void print_usage(FILE *stream, char const *program_name) {
+void print_usage(FILE *stream, const char *program_name) {
     assert(stream != NULL);
     assert(program_name != NULL);
     fprintf(stream, "Usage: zelda64 [-hvcx] [-p patch_file] file [out_file]\n");
@@ -41,7 +42,7 @@ void print_version(void) {
     printf("\tby Jesse Gerard Brands <https://github.com/jessebrands/zelda64>\n");
 }
 
-void print_help(char const *program_name) {
+void print_help(const char *program_name) {
     print_usage(stdout, program_name);
     printf("Options:\n");
     printf("\t-h\n\t\tDisplay this information.\n");
@@ -51,7 +52,7 @@ void print_help(char const *program_name) {
     printf("\t-p=<patch_file>\n\t\tPatches a Nintendo 64 Zelda ROM with a ZPF patch file.\n");
 }
 
-void parse_command_line_opts(zelda64_options_t *opts, int argc, char const *const *argv) {
+void parse_command_line_opts(zelda64_options_t *opts, int argc, const char *const *argv) {
     assert(opts != NULL);
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
@@ -145,7 +146,7 @@ void write_out(uint64_t offset, size_t size, uint8_t *data, void *userdata) {
 
 int main(int argc, char **argv) {
     zelda64_options_t opts = {0};
-    parse_command_line_opts(&opts, argc, (char const *const *) argv);
+    parse_command_line_opts(&opts, argc, (const char *const *) argv);
     if (opts.show_help) {
         print_help(argv[0]);
         return EXIT_SUCCESS;
@@ -184,7 +185,7 @@ int main(int argc, char **argv) {
         offset += CHUNK_SIZE;
     }
     // Grab information about the DMA table and load the whole thing into memory.
-    zelda64_dma_info_t const info = zelda64_get_dma_table_information(buffer, dma_offset);
+    const zelda64_dma_info_t info = zelda64_get_dma_table_information(buffer, dma_offset);
     if (fseek(in_file, info.offset, SEEK_SET)) {
         fprintf(stderr, "failed to read ROM file '%s'\n", opts.in_filename);
         return EXIT_FAILURE;
@@ -212,7 +213,6 @@ int main(int argc, char **argv) {
         fflush(out_file);
         fseek(out_file, 0, SEEK_SET);
     }
-    uint8_t *dma_out = calloc(info.size, sizeof(uint8_t));
     zelda64_userdata_t userdata = {
             .in_file = in_file,
             .out_file = out_file,
@@ -227,11 +227,6 @@ int main(int argc, char **argv) {
             .write_out = write_out,
             .userdata = &userdata,
     });
-    // Write out the new DMA table.
-    fseek(out_file, info.offset, SEEK_SET);
-    fwrite(dma_out, sizeof(uint8_t), info.size, out_file);
-    free(dma_out);
-    free(dma_data);
     // Recalculate the CRC-32 checksum of the output ROM.
     fflush(out_file);
     if (fseek(out_file, 0, SEEK_SET)) {
