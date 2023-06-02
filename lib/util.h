@@ -16,6 +16,12 @@ static inline uint32_t u32_from_buf(const uint8_t *buf) {
             | ((uint32_t) buf[3]) << 0);
 }
 
+static inline uint32_t u24_from_buf(const uint8_t *buf) {
+    return (((uint32_t) buf[0]) << 16
+            | ((uint32_t) buf[1]) << 8
+            | ((uint32_t) buf[2]) << 0);
+}
+
 /**
  * Writes an uint32_t to an uint8_t array.
  * @param n The number to write.

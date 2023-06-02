@@ -12,7 +12,7 @@ add_library(zelda64 SHARED
         lib/dma.c include/zelda64/dma.h
         lib/yaz0.c include/zelda64/yaz0.h
         lib/crc32.c include/zelda64/crc32.h
-        lib/decompressor.c include/zelda64/decompressor.h)
+        lib/decompressor.c include/zelda64/decompressor.h lib/zpf.c include/zelda64/zpf.h)
 set_target_properties(zelda64 PROPERTIES
         C_STANDARD 17
         C_STANDARD_REQUIRED ON
