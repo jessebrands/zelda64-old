@@ -1,6 +1,6 @@
-#include <zelda64/decompressor.h>
-#include <zelda64/dma.h>
-#include <zelda64/yaz0.h>
+#include "decompressor.h"
+#include "zelda64/dma.h"
+#include "zelda64/yaz0.h"
 
 int zelda64_decompress_rom(zelda64_decompressor_info_t info) {
     zelda64_dma_info_t dma_info = info.dma_info;
