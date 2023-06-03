@@ -9,6 +9,7 @@
 
 #include <zelda64/dma.h>
 #include <zelda64/rom.h>
+#include <zelda64/zpf.h>
 
 // TODO: Remove this dependency!!
 #include "../lib/util.h"
@@ -149,7 +150,7 @@ void write_out(uint64_t offset, size_t size, uint8_t *data, void *userdata) {
     fwrite(data, sizeof(uint8_t), size, d->out_file);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
     zelda64_options_t opts = {0};
     parse_command_line_opts(&opts, argc, (const char *const *) argv);
     if (opts.show_help) {
@@ -259,21 +260,37 @@ int main(int argc, char **argv) {
     // Decompress the patch file.
     if (opts.mode == ZELDA64_MODE_PATCH) {
         FILE *patch_file = fopen(opts.patch_filename, "rb");
-        uint8_t *out_buffer = calloc(CHUNK_SIZE, sizeof(uint8_t));
+        uint8_t *zpf_buffer = calloc(CHUNK_SIZE, sizeof(uint8_t));
+        size_t zpf_size = CHUNK_SIZE;
         int ret = decompress_zpf_file((zelda64_decompress_zpf_info_t) {
                 .patch_file = patch_file,
-                .out_buffer = &out_buffer,
-                .buffer_size = CHUNK_SIZE,
+                .out_buffer = &zpf_buffer,
+                .buffer_size = &zpf_size,
                 .realloc_func = realloc
         });
         fclose(patch_file);
         if (ret != Z_OK) {
             fprintf(stderr, "failed to decompress ZPF file '%s'\n", opts.patch_filename);
-            free(out_buffer);
+            free(zpf_buffer);
             return EXIT_FAILURE;
         }
-        // Clean up our data.
-        free(out_buffer);
+        if (zelda64_is_zpf1_data(zpf_buffer, zpf_size)) {
+            zelda64_zpf1_header_t zpf_header = {0};
+            zelda64_zpf1_read_header(&zpf_header, zpf_buffer, zpf_size);
+            zelda64_zpf_dma_reader_t zpf_reader = {
+                    .data = zpf_buffer,
+                    .size = zpf_size,
+                    .offset = 21,
+            };
+            zelda64_zpf_dma_entry_t dma_entry = {0};
+            printf("   #            FILE        OFFSET        SIZE\n");
+            while (zelda64_zpf_get_next_dma_entry(&zpf_reader, &dma_entry)) {
+                printf("%-4d => { 0x%08X, %12d, %10d }\n",
+                       dma_entry.index, dma_entry.from_file, dma_entry.offset, dma_entry.size);
+                fflush(stdout);
+            }
+        }
+        free(zpf_buffer);
     }
     return EXIT_SUCCESS;
 }

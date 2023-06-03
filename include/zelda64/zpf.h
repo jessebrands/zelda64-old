@@ -60,4 +60,13 @@ static inline bool zelda64_is_zpf1_data(const uint8_t *data, size_t size) {
     return size >= sizeof ZPF1_MAGIC && memcmp(data, ZPF1_MAGIC, sizeof ZPF1_MAGIC) == 0;
 }
 
-int zelda64_zpf1_read_header(zelda64_zpf1_header_t* out, const uint8_t* data, size_t size);
+int zelda64_zpf1_read_header(zelda64_zpf1_header_t *out, const uint8_t *data, size_t size);
+
+typedef struct zelda64_zpf_dma_reader {
+    int_fast32_t index;
+    const uint8_t *data;
+    size_t offset;
+    size_t size;
+} zelda64_zpf_dma_reader_t;
+
+bool zelda64_zpf_get_next_dma_entry(zelda64_zpf_dma_reader_t *reader, zelda64_zpf_dma_entry_t *dma_entry);

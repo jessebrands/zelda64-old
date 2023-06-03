@@ -11,7 +11,6 @@ int decompress_zpf_file(zelda64_decompress_zpf_info_t info) {
     uint8_t in_buf[CHUNK_SIZE] = {0};
     uint8_t tmp_buf[CHUNK_SIZE] = {0};
     size_t bytes_written = 0;
-    size_t out_size = info.buffer_size;
     z_stream strm = {0};
     size_t have = 0;
     int ret = inflateInit(&strm);
@@ -41,9 +40,9 @@ int decompress_zpf_file(zelda64_decompress_zpf_info_t info) {
                     return ret;
             }
             have = CHUNK_SIZE - strm.avail_out;
-            if (bytes_written + have > out_size) {
+            if (bytes_written + have > *info.buffer_size) {
                 *info.out_buffer = info.realloc_func(*info.out_buffer, bytes_written + have);
-                out_size = bytes_written + have;
+                *info.buffer_size = bytes_written + have;
             }
             memcpy((*info.out_buffer) + bytes_written, tmp_buf, have);
             bytes_written += have;
