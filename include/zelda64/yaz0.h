@@ -13,6 +13,12 @@ typedef struct zelda64_yaz0_header {
     uint32_t alignment;
 } zelda64_yaz0_header_t;
 
+typedef struct zelda64_yaz0_data_group {
+    uint8_t header;
+    uint8_t chunks[24];
+    size_t length;
+} zelda64_yaz0_data_group_t;
+
 /**
  * Attempts to read a Yaz0 header from a buffer.
  * @param buf The buffer to read from.
@@ -37,3 +43,5 @@ void zelda64_yaz0_decompress(uint8_t *dest, size_t dest_size, const uint8_t *src
 static inline bool zelda64_is_valid_yaz0_header(zelda64_yaz0_header_t header) {
     return memcmp(header.magic, ZELDA64_YAZ0_MAGIC, sizeof(header.magic)) == 0;
 }
+
+void zelda64_yaz0_compress(const uint8_t *src, size_t src_size, int level);
