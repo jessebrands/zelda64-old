@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 #define ZELDA64_DEFAULT_OUTFILE "out.z64"
 
@@ -94,8 +93,8 @@ void parse_command_line_opts(zelda64_options_t *opts, int argc, const char *cons
     }
 }
 
-int main(int argc, char **argv) {
-    zelda64_options_t opts = {0};
+int main(int argc, char *argv[]) {
+    zelda64_options_t opts = {};
     parse_command_line_opts(&opts, argc, (const char *const *) argv);
     if (opts.show_help) {
         print_help(argv[0]);
