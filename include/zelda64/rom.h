@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 #define ZELDA64_ROM_IMAGE_NAME_LENGTH 20

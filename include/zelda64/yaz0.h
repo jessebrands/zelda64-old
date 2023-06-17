@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -26,7 +27,7 @@ zelda64_yaz0_header_t zelda64_get_yaz0_header(const uint8_t *buf, size_t size);
  * @param dest_size Output buffer size in bytes.
  * @param src The source buffer to read the compressed data from.
  */
-void zelda64_yaz0_decompress(uint8_t *dest, uint64_t dest_size, const uint8_t *src);
+void zelda64_yaz0_decompress(uint8_t *dest, size_t dest_size, const uint8_t *src);
 
 /**
  * Checks whether a Yaz0 header is valid.
