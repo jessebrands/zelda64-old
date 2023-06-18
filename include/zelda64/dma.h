@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <zelda64/zelda64.h>
+
 typedef struct zelda64_dma_entry {
     uint32_t v_start;
     uint32_t v_end;
@@ -16,6 +18,14 @@ typedef struct zelda64_dma_info {
     uint32_t size;
     uint32_t entries;
 } zelda64_dma_info_t;
+
+typedef struct zelda64_find_dma_table_params {
+    size_t rom_size;
+    size_t block_size;
+    zelda64_read_data_func_t* read_block;
+    zelda64_close_data_func_t* close_block;
+    void *userdata;
+} zelda64_find_dma_table_params_t;
 
 /**
  * Seeks the start of a DMA table within a buffer.
@@ -34,6 +44,14 @@ int zelda64_find_dma_table_offset(const uint8_t *buffer, size_t buffer_length, u
  * @note The returned structure may contain invalid information if the function was supplied incorrect argument.
  */
 zelda64_dma_info_t zelda64_get_dma_table_information(const uint8_t *buffer, size_t buffer_size, size_t dma_offset);
+
+/**
+ * Finds the DMA table within a ROM using a stream reading approach.
+ * @param params Struct with parameters to the function.
+ * @param out Pointer to a DMA information struct.
+ * @return ZELDA64_OK if the function succeeds, an error code if not.
+ */
+zelda64_result_t zelda64_find_dma_table(zelda64_find_dma_table_params_t params, zelda64_dma_info_t* out);
 
 /**
  * Retrieves a DMA entry from a DMA table.
@@ -81,4 +99,17 @@ static inline bool zelda64_is_compressed_file(zelda64_dma_entry_t entry) {
     return !zelda64_is_empty_file(entry) && !zelda64_is_uncompressed_file(entry);
 }
 
-
+/**
+ * Returns the size of a file in the ROM.
+ * @param entry The DMA entry for the file.
+ * @return The size of the file in bytes.
+ */
+static inline size_t zelda64_get_file_size(zelda64_dma_entry_t entry) {
+    if (zelda64_is_compressed_file(entry)) {
+        return entry.p_end - entry.p_start;
+    } else if (zelda64_is_uncompressed_file(entry)) {
+        return entry.v_end - entry.v_start;
+    } else {
+        return 0;
+    }
+}

@@ -8,6 +8,7 @@ endif ()
 # Library.
 add_library(zelda64 SHARED
         lib/util.h
+        include/zelda64/zelda64.h
         lib/rom.c include/zelda64/rom.h
         lib/dma.c include/zelda64/dma.h
         lib/yaz0.c include/zelda64/yaz0.h
@@ -20,7 +21,8 @@ set_target_properties(zelda64 PROPERTIES
 target_include_directories(zelda64 PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Binary based on the library.
-add_executable(zelda64-bin src/main.c src/decompress.c src/decompress.h src/zelda64.h)
+add_executable(zelda64-bin src/main.c
+        src/decompress.c src/decompress.h)
 
 set_target_properties(zelda64-bin PROPERTIES
         C_STANDARD 23

@@ -52,6 +52,50 @@ zelda64_dma_info_t zelda64_get_dma_table_information(const uint8_t *buffer, size
     };
 }
 
+zelda64_result_t seek_dma_offset(zelda64_find_dma_table_params_t params, size_t *dma_offset) {
+    size_t bytes_remaining = params.rom_size;
+    size_t bytes_read = 0;
+    uint64_t result = 0;
+    while (bytes_remaining > 0) {
+        // Read the next block of data from the ROM file.
+        size_t block_size = params.block_size;
+        if (block_size > bytes_remaining) {
+            block_size = bytes_remaining;
+        }
+        uint8_t *data = params.read_block(params.block_size, bytes_read, params.userdata);
+        if (data == nullptr) {
+            return ZELDA64_ERROR_INVALID_DATA;
+        }
+        if (!zelda64_find_dma_table_offset(data, block_size, &result)) {
+            *dma_offset = bytes_read + result;
+            if (params.close_block != nullptr) {
+                params.close_block(data, block_size, params.userdata);
+            }
+            return ZELDA64_OK;
+        }
+        bytes_remaining -= block_size;
+        bytes_read += block_size;
+        if (params.close_block != nullptr) {
+            params.close_block(data, block_size, params.userdata);
+        }
+    }
+    return ZELDA64_ERROR_INVALID_DATA;
+}
+
+zelda64_result_t zelda64_find_dma_table(zelda64_find_dma_table_params_t params, zelda64_dma_info_t *out) {
+    size_t dma_offset = 0;
+    if (seek_dma_offset(params, &dma_offset) != ZELDA64_OK) {
+        return ZELDA64_ERROR_INVALID_DATA;
+    }
+    // Read first 3 entries from the DMA table.
+    uint8_t *data = params.read_block(48, dma_offset, params.userdata);
+    *out = zelda64_get_dma_table_information(data, 48, 0);
+    if (params.close_block != nullptr) {
+        params.close_block(data, 48, params.userdata);
+    }
+    return ZELDA64_OK;
+}
+
 zelda64_dma_entry_t zelda64_get_dma_table_entry(const uint8_t *dma_data, size_t size, uint32_t index) {
     assert(dma_data != NULL);
     assert(index * 16 + 16 <= size);
@@ -65,3 +109,4 @@ int zelda64_set_dma_table_entry(uint8_t *dma_data, size_t size, uint32_t index, 
     write_entry_to_buf(dma_data + 16 * index, entry);
     return 0;
 }
+

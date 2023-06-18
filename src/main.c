@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 
 #include "decompress.h"
 
@@ -27,7 +26,7 @@ void zelda64_file_read_writer_close(zelda64_file_read_writer_t read_writer) {
     fclose(read_writer.out_file);
 }
 
-uint8_t *file_read_rom_data(size_t size, size_t offset, void *userdata) {
+void *file_read_rom_data(size_t size, size_t offset, void *userdata) {
     zelda64_file_read_writer_t *read_writer = (zelda64_file_read_writer_t *) userdata;
     fseek(read_writer->in_file, (long) offset, SEEK_SET);
     uint8_t *data = malloc(size);
@@ -42,7 +41,7 @@ uint8_t *file_read_rom_data(size_t size, size_t offset, void *userdata) {
     return data;
 }
 
-void file_close_rom_data(uint8_t *data, size_t size, void *userdata) {
+void file_close_rom_data(void *data, size_t size, void *userdata) {
     free(data);
 }
 
@@ -53,7 +52,7 @@ void file_reserve_space(size_t size, void *userdata) {
     fwrite(&nothing, sizeof(char), size, read_writer->out_file);
 }
 
-void file_write_out(uint8_t *data, size_t size, size_t offset, void *userdata) {
+void file_write_out(void *data, size_t size, size_t offset, void *userdata) {
     zelda64_file_read_writer_t *read_writer = (zelda64_file_read_writer_t *) userdata;
     fseek(read_writer->out_file, (long) offset, SEEK_SET);
     fwrite(data, sizeof(uint8_t), size, read_writer->out_file);
