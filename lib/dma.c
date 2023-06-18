@@ -41,7 +41,7 @@ int zelda64_find_dma_table_offset(const uint8_t *buffer, size_t buffer_length, u
     return -1;
 }
 
-zelda64_dma_info_t zelda64_get_dma_table_information(const uint8_t *buffer, size_t dma_offset) {
+zelda64_dma_info_t zelda64_get_dma_table_information(const uint8_t *buffer, size_t buffer_size, size_t dma_offset) {
     assert(buffer != NULL);
     const uint8_t *cursor = buffer + (dma_offset + 32);
     const zelda64_dma_entry_t entry = read_entry_from_buf(cursor);

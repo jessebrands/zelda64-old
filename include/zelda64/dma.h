@@ -33,7 +33,7 @@ int zelda64_find_dma_table_offset(const uint8_t *buffer, size_t buffer_length, u
  * @return Structure containing information about the DMA table.
  * @note The returned structure may contain invalid information if the function was supplied incorrect argument.
  */
-zelda64_dma_info_t zelda64_get_dma_table_information(const uint8_t *buffer, size_t dma_offset);
+zelda64_dma_info_t zelda64_get_dma_table_information(const uint8_t *buffer, size_t buffer_size, size_t dma_offset);
 
 /**
  * Retrieves a DMA entry from a DMA table.
