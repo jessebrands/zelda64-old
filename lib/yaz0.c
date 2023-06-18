@@ -100,21 +100,15 @@ void yaz0_search(const uint8_t *src, size_t src_size, int pos, int max_length, i
     *found_length = f_len;
 }
 
-void zelda64_yaz0_compress(const uint8_t *restrict src, size_t src_size, int level) {
-    zelda64_yaz0_header_t header = {
-            .magic = "Yaz0",
-            .uncompressed_size = src_size,
-            .alignment = 0,
-    };
+int zelda64_yaz0_compress_group(const uint8_t *restrict src, size_t src_size, int src_pos, int level,
+                                zelda64_yaz0_data_group_t *restrict out) {
     int search_range = 0;
     // The level controls the search range:
     if (level >= 0 && level <= 9) {
         search_range = 0x10e0 * level / 9 - 0x0e0;
     }
     // Read over the source array.
-    int src_pos = 0;
-    size_t dest_pos = 16;
-    while (src_pos < src_size) {
+    if (src_pos < src_size) {
         // Yaz0 compresses data into groups, a 1-byte header with 8 chunks of variable size, each bit in the header
         // Indicates the size of each chunk. If a bit is high (1), that means the chunk is one byte and should be copied
         // directly during decompression. If a bit is low (0), then the byte specifies the location in the compressed
@@ -123,8 +117,7 @@ void zelda64_yaz0_compress(const uint8_t *restrict src, size_t src_size, int lev
         // Therefore, the compression level sets the search range. A level of 0 creates a search range of 0, therefore
         // all bits in the header will be set to 1 and the chunks will each be a byte long. This means that there is
         // no compression at all; and in fact the destination buffer will be larger than the source due to the Yaz0
-        // metadata that will be attached to the uncompressed data and the 16-byte Yaz0 header.
-        zelda64_yaz0_data_group_t group = {};
+        // metadata that will be attached to the uncompressed data and the 16-byte Yaz0 header.;
         size_t group_pos = 0;
         for (int i = 0; i < 8; ++i) {
             int found = 0;
@@ -135,20 +128,22 @@ void zelda64_yaz0_compress(const uint8_t *restrict src, size_t src_size, int lev
             if (found_length > 2) {
                 int delta = src_pos - found - 1;
                 if (found_length < 0x12) {
-                    group.chunks[group_pos++] = delta >> 8 | (found_length - 2) << 4;
-                    group.chunks[group_pos++] = delta & 0xFF;
+                    out->chunks[group_pos++] = delta >> 8 | (found_length - 2) << 4;
+                    out->chunks[group_pos++] = delta & 0xFF;
                 } else {
-                    group.chunks[group_pos++] = delta >> 8;
-                    group.chunks[group_pos++] = delta & 0xFF;
-                    group.chunks[group_pos++] = (found_length - 0x12) & 0xFF;
+                    out->chunks[group_pos++] = delta >> 8;
+                    out->chunks[group_pos++] = delta & 0xFF;
+                    out->chunks[group_pos++] = (found_length - 0x12) & 0xFF;
                 }
                 src_pos += found_length;
             } else {
                 // This means that there was no found match, so we should copy the byte directly.
-                group.chunks[group_pos++] = src[src_pos++];
-                group.header |= 1 << (7 - i);
+                out->chunks[group_pos++] = src[src_pos++];
+                out->header |= 1 << (7 - i);
             }
         }
-        group.length = group_pos;
+        out->length = group_pos;
+        return src_pos;
     }
+    return 0;
 }
