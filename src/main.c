@@ -2,7 +2,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
+#include "compress.h"
 #include "decompress.h"
 
 #define ZELDA64_DEFAULT_OUTFILE "out.z64"
@@ -66,6 +68,20 @@ zelda64_decompress_rom_params_t decompress_params_from_file_read_writer(zelda64_
         .read_rom_data = file_read_rom_data,
         .close_rom_data = file_close_rom_data,
         .reserve = file_reserve_space,
+        .write_data = file_write_out,
+        .block_size = 1024 * 16,
+        .rom_size = filesize,
+        .userdata = read_writer,
+    };
+}
+
+zelda64_compress_rom_params_t compress_params_from_file_read_writer(zelda64_file_read_writer_t *read_writer) {
+    fseek(read_writer->in_file, 0, SEEK_SET);
+    fseek(read_writer->in_file, 0, SEEK_END);
+    long filesize = ftell(read_writer->in_file);
+    return (zelda64_compress_rom_params_t) {
+        .read_rom_data = file_read_rom_data,
+        .close_rom_data = file_close_rom_data,
         .write_data = file_write_out,
         .block_size = 1024 * 16,
         .rom_size = filesize,
@@ -182,7 +198,25 @@ int main(int argc, char *argv[]) {
         zelda64_file_read_writer_close(read_writer);
     }
     if (opts.mode & ZELDA64_MODE_COMPRESS) {
-
+        zelda64_file_read_writer_t read_writer = zelda64_file_read_writer_open(opts.in_filename, opts.out_filename);
+        uint32_t exclusions[] = {
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                942, 944, 946, 948, 950, 952, 954, 956, 958, 960, 962, 964, 966, 968, 970, 972, 974, 976, 978, 980,
+                982, 984, 986, 988, 990, 992, 994, 996, 998, 1000, 1002, 1004,
+                1497, 1498, 1499, 1500, 1501, 1502, 1503, 1504, 1505, 1506, 1507, 1508, 1509, 1510, 1511, 1512, 1513,
+                1514, 1515, 1516, 1517, 1518, 1519, 1520, 1521, 1522, 1523, 1524, 1525
+        };
+        zelda64_compress_rom_params_t params = compress_params_from_file_read_writer(&read_writer);
+        params.exclusion_list = exclusions;
+        params.exclusion_list_size = sizeof exclusions / sizeof (uint32_t);
+        params.threshold = 1024 * 256; // Files larger than 32 KB should be handled on a thread.
+        clock_t start = clock();
+        zelda64_compress_rom(params, zelda64_default_allocator());
+        clock_t end = clock();
+        double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+        printf("Compression finished in %.1f s\n", time_spent);
+        zelda64_file_read_writer_close(read_writer);
     }
     return EXIT_SUCCESS;
 }

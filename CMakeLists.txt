@@ -22,6 +22,7 @@ target_include_directories(zelda64 PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Binary based on the library.
 add_executable(zelda64-bin src/main.c
+        src/compress.c src/compress.h
         src/decompress.c src/decompress.h)
 
 set_target_properties(zelda64-bin PROPERTIES

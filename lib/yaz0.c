@@ -52,7 +52,7 @@ void zelda64_yaz0_decompress(uint8_t *dest, size_t dest_size, const uint8_t *src
 void yaz0_search(const uint8_t *src, size_t src_size, int pos, int max_length, int search_range,
                  int *restrict found, int *restrict found_length) {
     int f = 0;
-    int f_len = 0;
+    int f_len = 1;
     if (pos + 2 < src_size) {
         // Look back as far as the range allows us.
         int search = pos - search_range;
