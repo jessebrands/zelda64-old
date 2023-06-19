@@ -57,7 +57,9 @@ size_t compress_worker(void *userdata) {
     // Finalize writing data.
     params->compress_params->write_data(buffer, bytes_written, params->write_offset + bytes_out,
                                         params->compress_params->userdata);
-    return bytes_out + bytes_written;
+    // File sizes must be aligned so do that here:
+    bytes_written = (bytes_out + bytes_written + 31) & -16;
+    return bytes_written;
 }
 
 zelda64_result_t zelda64_compress_rom(zelda64_compress_rom_params_t params, zelda64_allocator_t allocator) {

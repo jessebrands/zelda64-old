@@ -1,5 +1,6 @@
 #include <zelda64/yaz0.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "util.h"
 
@@ -100,6 +101,66 @@ void yaz0_search(const uint8_t *src, size_t src_size, int pos, int max_length, i
     *found_length = f_len;
 }
 
+void calculate_prefix_table(const uint8_t *restrict needle, size_t size, int *restrict table) {
+    int len = 0;
+    table[0] = 0;
+    int i = 1;
+    while (i < size) {
+        if (needle[i] == needle[len]) {
+            ++len;
+            table[i] = len;
+            ++i;
+        } else {
+            if (len != 0) {
+                len = table[len - 1];
+            } else {
+                table[i] = 0;
+                ++i;
+            }
+        }
+    }
+    return;
+}
+
+void find_longest_match(const uint8_t *data, size_t data_size,
+                        const uint8_t *needle, size_t needle_size,
+                        int *restrict match_start, int *restrict match_size) {
+    // Create our prefix table first.
+    int table[needle_size];
+    calculate_prefix_table(needle, needle_size, table);
+
+    int i = 0;
+    int j = 0;
+    int longest_start = 0;
+    int longest_match = 0;
+    while ((data_size - i) >= (needle_size - j)) {
+        if (data[i] == needle[j]) {
+            j++;
+            i++;
+        }
+        // If our match is the same size as our needle, we got a full match, stop, this is as good as it'll get.
+        if (j == needle_size) {
+            longest_start = i - j;
+            longest_match = j;
+            break;
+        }
+            // We failed to match after X characters.
+        else if (i < data_size && data[i] != needle[j]) {
+            if (j != 0) {
+                if (j > longest_match && j > 2) {
+                    longest_start = i - j;
+                    longest_match = j;
+                }
+                j = table[j - 1];
+            } else {
+                ++i;
+            }
+        }
+    }
+    *match_start = longest_start;
+    *match_size = longest_match;
+}
+
 int zelda64_yaz0_compress_group(const uint8_t *restrict src, size_t src_size, int src_pos, int level,
                                 zelda64_yaz0_data_group_t *restrict out) {
     int search_range = 0;
@@ -117,19 +178,43 @@ int zelda64_yaz0_compress_group(const uint8_t *restrict src, size_t src_size, in
         // Therefore, the compression level sets the search range. A level of 0 creates a search range of 0, therefore
         // all bits in the header will be set to 1 and the chunks will each be a byte long. This means that there is
         // no compression at all; and in fact the destination buffer will be larger than the source due to the Yaz0
-        // metadata that will be attached to the uncompressed data and the 16-byte Yaz0 header.;
+        // metadata that will be attached to the uncompressed data and the 16-byte Yaz0 header.
         size_t group_pos = 0;
-        for (int i = 0; i < 8; ++i) {
+        uint8_t bitmask = 0x80;
+        for (int i = 0; i < 8 && src_pos < src_size; ++i) {
             int found = 0;
             int found_length = 0;
             if (search_range > 0) {
+                /*
+                // Calculate look back position.
+                int search = src_pos - search_range;
+                if (search < 0) {
+                    search = 0;
+                }
+                int search_end = search_range;
+                if (search_end > src_size) {
+                    search_end = src_size;
+                }
+                if (search_end > src_pos) {
+                    search_end = src_pos;
+                }
+                // The size of the needle (ideally we find this!)
+                size_t needle_size = YAZ0_MAX_LENGTH;
+                if (needle_size > src_size - src_pos) {
+                    needle_size = src_size - src_pos;
+                }
+                // Here, we now use our own algorithm!
+                find_longest_match(src + search, search_end, src + src_pos, needle_size,
+                                   &found, &found_length);
+                found = search + found;
+                */
                 yaz0_search(src, src_size, src_pos, YAZ0_MAX_LENGTH, search_range, &found, &found_length);
             }
             if (found_length > 2) {
                 int delta = src_pos - found - 1;
                 if (found_length < 0x12) {
-                    out->chunks[group_pos++] = delta >> 8 | (found_length - 2) << 4;
-                    out->chunks[group_pos++] = delta & 0xFF;
+                    out->chunks[group_pos++] = ((found_length - 2) << 4) | (delta >> 8) ;
+                    out->chunks[group_pos++] = (delta & 0xFF);
                 } else {
                     out->chunks[group_pos++] = delta >> 8;
                     out->chunks[group_pos++] = delta & 0xFF;
@@ -139,8 +224,9 @@ int zelda64_yaz0_compress_group(const uint8_t *restrict src, size_t src_size, in
             } else {
                 // This means that there was no found match, so we should copy the byte directly.
                 out->chunks[group_pos++] = src[src_pos++];
-                out->header |= 1 << (7 - i);
+                out->header |= bitmask;
             }
+            bitmask = bitmask >> 1;
         }
         out->length = group_pos;
         return src_pos;

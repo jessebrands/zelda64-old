@@ -14,12 +14,13 @@ typedef struct zelda64_file_read_writer {
     FILE *out_file;
 } zelda64_file_read_writer_t;
 
-zelda64_file_read_writer_t zelda64_file_read_writer_open(const char *restrict in_filename, const char *restrict out_filename) {
-    FILE* in_file = fopen(in_filename, "rb");
-    FILE* out_file = fopen(out_filename, "wb");
+zelda64_file_read_writer_t
+zelda64_file_read_writer_open(const char *restrict in_filename, const char *restrict out_filename) {
+    FILE *in_file = fopen(in_filename, "rb");
+    FILE *out_file = fopen(out_filename, "wb");
     return (zelda64_file_read_writer_t) {
-        .in_file = in_file,
-        .out_file = out_file,
+            .in_file = in_file,
+            .out_file = out_file,
     };
 }
 
@@ -35,7 +36,7 @@ void *file_read_rom_data(size_t size, size_t offset, void *userdata) {
     if (data == nullptr) {
         return nullptr;
     }
-    fread(data, sizeof (uint8_t), size, read_writer->in_file);
+    fread(data, sizeof(uint8_t), size, read_writer->in_file);
     if (ferror(read_writer->in_file)) {
         free(data);
         return nullptr;
@@ -65,13 +66,13 @@ zelda64_decompress_rom_params_t decompress_params_from_file_read_writer(zelda64_
     fseek(read_writer->in_file, 0, SEEK_END);
     long filesize = ftell(read_writer->in_file);
     return (zelda64_decompress_rom_params_t) {
-        .read_rom_data = file_read_rom_data,
-        .close_rom_data = file_close_rom_data,
-        .reserve = file_reserve_space,
-        .write_data = file_write_out,
-        .block_size = 1024 * 16,
-        .rom_size = filesize,
-        .userdata = read_writer,
+            .read_rom_data = file_read_rom_data,
+            .close_rom_data = file_close_rom_data,
+            .reserve = file_reserve_space,
+            .write_data = file_write_out,
+            .block_size = 1024 * 16,
+            .rom_size = filesize,
+            .userdata = read_writer,
     };
 }
 
@@ -80,12 +81,12 @@ zelda64_compress_rom_params_t compress_params_from_file_read_writer(zelda64_file
     fseek(read_writer->in_file, 0, SEEK_END);
     long filesize = ftell(read_writer->in_file);
     return (zelda64_compress_rom_params_t) {
-        .read_rom_data = file_read_rom_data,
-        .close_rom_data = file_close_rom_data,
-        .write_data = file_write_out,
-        .block_size = 1024 * 16,
-        .rom_size = filesize,
-        .userdata = read_writer,
+            .read_rom_data = file_read_rom_data,
+            .close_rom_data = file_close_rom_data,
+            .write_data = file_write_out,
+            .block_size = 1024 * 16,
+            .rom_size = filesize,
+            .userdata = read_writer,
     };
 }
 
@@ -209,12 +210,12 @@ int main(int argc, char *argv[]) {
         };
         zelda64_compress_rom_params_t params = compress_params_from_file_read_writer(&read_writer);
         params.exclusion_list = exclusions;
-        params.exclusion_list_size = sizeof exclusions / sizeof (uint32_t);
+        params.exclusion_list_size = sizeof exclusions / sizeof(uint32_t);
         params.threshold = 1024 * 256; // Files larger than 32 KB should be handled on a thread.
         clock_t start = clock();
         zelda64_compress_rom(params, zelda64_default_allocator());
         clock_t end = clock();
-        double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+        double time_spent = (double) (end - start) / CLOCKS_PER_SEC;
         printf("Compression finished in %.1f s\n", time_spent);
         zelda64_file_read_writer_close(read_writer);
     }
